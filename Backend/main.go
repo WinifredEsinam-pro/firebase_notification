@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	firebase "firebase.google.com/go/v4"
@@ -17,78 +18,62 @@ import (
 )
 
 var client *messaging.Client
-
 var collection *mongo.Collection
 
 type TokenRequest struct {
 	Token string `json:"token"`
 }
 
-func initFirebase() {
-	opt := option.WithCredentialsFile("serviceAccountKey.json")
+func enableCORS(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
 
-	app,err := firebase.NewApp(context.Background(), nil, opt)
+func initFirebase() {
+	cred := os.Getenv("FIREBASE_CREDENTIALS")
+	opt := option.WithCredentialsJSON([]byte(cred))
+
+	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
-		log.Fatal("Firebase init error:", err)
+		log.Fatal(err)
 	}
 
 	client, err = app.Messaging(context.Background())
-	if err != nil{
-		log.Fatal("Messaging init error:", err)	
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
-func initDB(){
+func initDB() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
-	if err !=nil {
-		log.Fatal("MongoDB connection error:", err)
+	mongoURI := os.Getenv("mongodb+srv://kokosuwinifred_db_user:W!n1fr3d3s!@cluster0.g3sfpdl.mongodb.net/?fcm_db=Cluster0")
+
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		log.Fatal(err)
 	}
+
 	collection = mongoClient.Database("fcm_db").Collection("tokens")
-	fmt.Println("Connected to MongoDB")
 }
 
 func saveToken(w http.ResponseWriter, r *http.Request) {
- w.Header().Set("Content-Type", "application/json")
+	enableCORS(&w)
 
- var req TokenRequest
- err := json.NewDecoder(r.Body).Decode(&req)
- if err != nil {
-	http.Error(w, "Invalid Request", http.StatusBadRequest)
-	return
- }
+	var req TokenRequest
+	json.NewDecoder(r.Body).Decode(&req)
 
- filter := bson.M{"token": req.Token}
- update := bson.M{"$set": bson.M{
-	"token": req.Token,
-	"updatedAt": time.Now(),
-},
-"$setOnInsert":bson.M{
-	"createdAt": time.Now(),
-},
-}
-opts := options.Update().SetUpsert(true)
-_, err = collection.UpdateOne(context.Background(), filter, update, opts)
-	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
-		return
-	}
-
-	fmt.Println("Token saved/updated:", req.Token)
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "token saved",
+	collection.InsertOne(context.Background(), bson.M{
+		"token": req.Token,
 	})
+
+	fmt.Fprintln(w, "Token saved")
 }
 
 func sendNotification(w http.ResponseWriter, r *http.Request) {
-	cursor, err := collection.Find(context.Background(), bson.M{})
-	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
-		return
-	}
+	enableCORS(&w)
+
+	cursor, _ := collection.Find(context.Background(), bson.M{})
 	defer cursor.Close(context.Background())
 
 	for cursor.Next(context.Background()) {
@@ -99,21 +84,16 @@ func sendNotification(w http.ResponseWriter, r *http.Request) {
 
 		message := &messaging.Message{
 			Notification: &messaging.Notification{
-				Title: "Backend Notification",
-				Body:  "Sent from Go + MongoDB!",
+				Title: "Hello",
+				Body:  "Sent from Go backend",
 			},
 			Token: token,
 		}
 
-		_, err := client.Send(context.Background(), message)
-		if err != nil {
-			fmt.Println("Error sending to token:", token, err)
-		} else {
-			fmt.Println("Sent to:", token)
-		}
+		client.Send(context.Background(), message)
 	}
 
-	fmt.Fprintln(w, "Notifications sent")
+	fmt.Fprintln(w, "Sent")
 }
 
 func main() {
@@ -123,9 +103,11 @@ func main() {
 	http.HandleFunc("/save-token", saveToken)
 	http.HandleFunc("/send", sendNotification)
 
-	http.Handle("/", http.FileServer(http.Dir("../frontend")))
-	fmt.Println("Server running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Println("Running on", port)
+	http.ListenAndServe(":"+port, nil)
 }
-
-

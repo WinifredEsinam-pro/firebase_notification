@@ -47,7 +47,7 @@ func initDB() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoURI := os.Getenv("mongodb+srv://kokosuwinifred_db_user:W!n1fr3d3s!@cluster0.g3sfpdl.mongodb.net/?fcm_db=Cluster0")
+	mongoURI := os.Getenv("MONGODB_URI")
 
 	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	if err != nil {
@@ -109,5 +109,5 @@ func main() {
 	}
 
 	log.Println("Running on", port)
-	http.ListenAndServe(":"+port, nil)
+	http.ListenAndServe("0.0.0.0:"+port, nil)
 }

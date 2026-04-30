@@ -1,0 +1,45 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "FCM Notification API",
+    "version": "1.0.0",
+    "description": "API for saving tokens and sending notifications"
+  },
+  "servers": [
+    {
+      "url": "https://firebase-notification-x6s8.onrender.com"
+    }
+  ],
+  "paths": {
+    "/save-token": {
+      "post": {
+        "summary": "Save device token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "token": "abc123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token saved"
+          }
+        }
+      }
+    },
+    "/send": {
+      "get": {
+        "summary": "Send notification to all users",
+        "responses": {
+          "200": {
+            "description": "Notifications sent"
+          }
+        }
+      }
+    }
+  }
+}

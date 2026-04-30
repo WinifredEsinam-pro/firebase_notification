@@ -1,0 +1,41 @@
+openapi: 3.0.0
+info:
+  title: FCM Notification API
+  version: 1.0.0
+  description: Backend API for storing device tokens and sending push notifications using Firebase Cloud Messaging
+
+servers:
+  - url: https://firebase-notification-x6s8.onrender.com
+
+paths:
+  /save-token:
+    post:
+      summary: Save a device token
+      description: Stores a Firebase device token in the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  example: 5679i08reedcxdxse4r5468uhkjbgfx
+      responses:
+        '200':
+          description: Token saved successfully
+          content:
+            text/plain:
+              example: Token saved
+
+  /send:
+    get:
+      summary: Send notification to all users
+      description: Sends a push notification to all stored device tokens
+      responses:
+        '200':
+          description: Notifications sent successfully
+          content:
+            text/plain:
+              example: Sent
